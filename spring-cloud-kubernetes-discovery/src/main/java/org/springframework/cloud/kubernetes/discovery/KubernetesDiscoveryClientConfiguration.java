@@ -17,9 +17,12 @@
 package org.springframework.cloud.kubernetes.discovery;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,16 +30,23 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(KubernetesDiscoveryProperties.class)
 @ConditionalOnProperty(value = "spring.cloud.kubernetes.discovery.enabled", matchIfMissing = true)
 public class KubernetesDiscoveryClientConfiguration {
+    private static Logger log = LoggerFactory.getLogger(KubernetesDiscoveryClientConfiguration.class);
 
     @Bean
-    @ConditionalOnMissingBean
     public KubernetesDiscoveryClient kubernetesDiscoveryClient(KubernetesClient client, KubernetesDiscoveryProperties properties) {
+        log.info("kubernetes.client: " + client);
         return new KubernetesDiscoveryClient(client, properties);
     }
 
     @Bean
-    public KubernetesDiscoveryLifecycle kubernetesDiscoveryLifecycle(KubernetesClient client, KubernetesDiscoveryProperties properties) {
-        return new KubernetesDiscoveryLifecycle(client, properties);
+    public KubernetesAutoServiceRegistration kubernetesAutoServiceRegistration(KubernetesServiceRegistry registry,
+                                                                               KubernetesDiscoveryClient kubernetesDiscoveryClient,
+                                                                               KubernetesDiscoveryProperties properties) {
+        return new KubernetesAutoServiceRegistration(registry, kubernetesDiscoveryClient, properties);
+    }
 
+    @Bean
+    public KubernetesServiceRegistry kubernetesServiceRegistry() {
+        return new KubernetesServiceRegistry();
     }
 }

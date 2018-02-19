@@ -19,6 +19,8 @@ package org.springframework.cloud.kubernetes.discovery;
 import io.fabric8.kubernetes.api.model.Endpoints;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.DefaultServiceInstance;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class KubernetesDiscoveryClient implements DiscoveryClient {
+    private static Logger log = LoggerFactory.getLogger(KubernetesDiscoveryClientConfiguration.class);
 
     private static final String HOSTNAME = "HOSTNAME";
 
@@ -53,13 +56,13 @@ public class KubernetesDiscoveryClient implements DiscoveryClient {
         return "Kubernetes Discovery Client";
     }
 
-    @Override
     public ServiceInstance getLocalServiceInstance() {
         String serviceName = properties.getServiceName();
         String podName = System.getenv(HOSTNAME);
         ServiceInstance defaultInstance = new DefaultServiceInstance(serviceName, "localhost", 8080, false);
 
         Endpoints endpoints = client.endpoints().withName(serviceName).get();
+        log.info("kubernetes.client.endpoints: " + endpoints);
         if (Utils.isNullOrEmpty(podName) || endpoints == null) {
             return defaultInstance;
         }
@@ -73,6 +76,7 @@ public class KubernetesDiscoveryClient implements DiscoveryClient {
                             false))
                     .findFirst().orElse(defaultInstance);
         } catch (Throwable t) {
+            log.error("error: " + t.getMessage());
             return defaultInstance;
         }
     }
@@ -80,6 +84,10 @@ public class KubernetesDiscoveryClient implements DiscoveryClient {
     @Override
     public List<ServiceInstance> getInstances(String serviceId) {
         Assert.notNull(serviceId, "[Assertion failed] - the object argument must be null");
+
+        Endpoints endpoints = client.endpoints().withName(serviceId).get();
+        log.info("kubernetes.client.service.endpoints (" + serviceId + "): " + endpoints);
+
         return Optional.ofNullable(client.endpoints().withName(serviceId).get()).orElse(new Endpoints())
                 .getSubsets()
                 .stream()
